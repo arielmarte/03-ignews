@@ -4,7 +4,7 @@ import { fauna } from "../../services/fauna";
 import { query as q } from "faunadb";
 import { stripe } from './../../services/stripe';
 
-interface User {
+type User = {
     ref: {
         id: string;
     },
@@ -17,22 +17,23 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === 'POST') {
         const session = await getSession({ req });
 
+
+
         const user = await fauna.query<User>(
             q.Get(
                 q.Match(
-                    q.Index("user_by_email"),
-                    q.Casefold(session?.user?.email as string)
+                    q.Index('user_by_email'),
+                    q.Casefold(<string>session?.user?.email)
                 )
             )
-        );
+        )
 
         let customerId = user.data.stripe_customer_id;
 
-        if (!customerId) {
+        if(!customerId){
             const stripeCustomer = await stripe.customers.create({
-                email: session?.user?.email as string,
-                //METADATA
-            });
+                email: <string>session?.user?.email,
+            })
 
             await fauna.query(
                 q.Update(
@@ -47,6 +48,10 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
             customerId = stripeCustomer.id
         }
+
+
+
+
 
         const stripeCheckoutSession = await stripe.checkout.sessions.create({
             customer: customerId,
@@ -70,63 +75,3 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 }
 
 
-
-// import { NextApiRequest, NextApiResponse } from "next";
-// import { query as q } from "faunadb"
-// import { getSession } from "next-auth/react";
-// import { fauna } from "../../services/fauna";
-// import { stripe } from "../../services/stripe";
-
-// type User = {
-//     ref: {
-//       id: string;
-//     };
-//     data: {
-//       stripe_customer_id: string;
-//     };
-//   };
-
-// export default async (
-//     req: NextApiRequest,
-//     res: NextApiResponse) => {
-
-//     if(req.method === "POST"){
-
-//         const session = await getSession({ req })
-
-//         const user = await fauna.query<User>(
-//             q.Get(
-//                 q.Match(
-//                     q.Index("user_by_email"),
-//                     q.Casefold(<string>session?.user?.email)
-//                 )
-//             )
-//         )
-
-//         const stripeCustomer = await stripe.customers.create({
-//             email: <string>session?.user?.email,
-//         })
-
-//         let costumerId = user.data.stripe_customer_id;
-
-
-//         if (!costumerId) {
-
-//             const stripeCustomer = await stripe.customers.create({
-//               email: <string>session?.user?.email
-//             })
-
-//             await fauna.query(
-//                 q.Update(
-//                     q.Ref(q.Collection("users"), user.ref.id),
-//                     {
-//                         data:{
-//                             stripe_cusomer_id: stripeCustomer.id,
-//                         }
-                        
-//                     }
-//                 )
-//             )
-//             costumerId = stripeCustomer.id;
-            
-//         }
